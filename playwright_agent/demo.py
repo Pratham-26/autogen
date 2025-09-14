@@ -1,24 +1,39 @@
 #!/usr/bin/env python3
 """
-Complete demonstration of the Playwright Agent
+Complete demonstration of the Playwright Agent with OpenRouter AI
 
 This script shows the full workflow of the Playwright Agent,
-from analysis to script generation.
+from AI-powered analysis to intelligent script generation.
 """
 
 import asyncio
 import json
-from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint
+import os
+from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint, OpenRouterConfig
 
 
 async def main():
-    """Demonstrate the complete Playwright Agent workflow"""
+    """Demonstrate the complete Playwright Agent workflow with AI integration"""
     
-    print("🎯 Playwright Agent - Complete Demonstration")
-    print("=" * 60)
+    print("🎯 Playwright Agent - Complete Demonstration with OpenRouter AI")
+    print("=" * 70)
     
-    # Initialize the agent
-    agent = PlaywrightAgent()
+    # Check for OpenRouter API key
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_api_key:
+        print("✅ OpenRouter API key found - AI features enabled")
+        openrouter_config = OpenRouterConfig(
+            api_key=openrouter_api_key,
+            model="anthropic/claude-3.5-sonnet",
+            enabled=True
+        )
+    else:
+        print("⚠️  No OpenRouter API key found - using rule-based analysis")
+        print("   Set OPENROUTER_API_KEY environment variable to enable AI features")
+        openrouter_config = OpenRouterConfig(enabled=False)
+    
+    # Initialize the agent with OpenRouter configuration
+    agent = PlaywrightAgent(openrouter_config=openrouter_config)
     
     # Step 1: Define what we want to extract
     print("\n📋 Step 1: Define extraction points")
@@ -26,17 +41,17 @@ async def main():
         ExtractionPoint(
             name="main_heading",
             type="text",
-            description="The main page heading"
+            description="The main product title or page heading"
         ),
         ExtractionPoint(
             name="price_value",
             type="number", 
-            description="Any price information on the page"
+            description="Current product price in dollars"
         ),
         ExtractionPoint(
             name="description_text",
             type="text",
-            description="Page description or summary"
+            description="Product description or summary text"
         )
     ]
     
@@ -44,8 +59,8 @@ async def main():
     for point in extraction_points:
         print(f"   • {point.name} ({point.type}): {point.description}")
     
-    # Step 2: Analyze the target page
-    print("\n🔍 Step 2: Analyze target webpage")
+    # Step 2: Analyze the target page with AI
+    print("\n🧠 Step 2: AI-powered page analysis")
     url = "https://example-store.com/featured-product"
     
     analysis = await agent.analyze_page(url)
@@ -56,8 +71,13 @@ async def main():
     print(f"   • Has JavaScript: {analysis.has_javascript}")
     print(f"   • Load time: {analysis.load_time:.2f}s")
     
-    # Step 3: Discover selectors
-    print("\n🎯 Step 3: Discover CSS selectors")
+    if agent.ai_enabled:
+        print("   • Analysis enhanced with OpenRouter AI 🤖")
+    else:
+        print("   • Analysis using rule-based logic")
+    
+    # Step 3: AI-enhanced selector discovery
+    print("\n🎯 Step 3: AI-enhanced selector discovery")
     selector_candidates = await agent.discover_selectors(url, extraction_points)
     
     print("✅ Selector discovery complete:")
@@ -66,17 +86,23 @@ async def main():
             best = candidates[0]  # Highest confidence
             print(f"   • {point_name}: '{best.selector}' (confidence: {best.confidence:.1%})")
             print(f"     Sample: '{best.sample_text[:50]}...'")
+            if len(candidates) > 1:
+                print(f"     {len(candidates)-1} additional candidates found")
         else:
             print(f"   • {point_name}: No suitable selectors found")
     
-    # Step 4: Generate scraping script
-    print("\n⚙️  Step 4: Generate scraping script")
+    if agent.ai_enabled:
+        print("   • Selectors enhanced with AI analysis 🤖")
+    
+    # Step 4: Generate AI-enhanced scraping script
+    print("\n⚙️  Step 4: Generate AI-enhanced scraping script")
     request = ScrapingRequest(
         url=url,
         extraction_points=extraction_points,
         max_iterations=2,
-        output_file="/tmp/demo_scraper.py",
-        method="auto"
+        output_file="/tmp/ai_enhanced_scraper.py",
+        method="auto",
+        openrouter_config=openrouter_config
     )
     
     # Get the best selectors
@@ -92,11 +118,14 @@ async def main():
     print(f"   • Script length: {len(script_content)} characters")
     print(f"   • Output file: {request.output_file}")
     
-    # Step 5: Show script preview
-    print("\n📄 Step 5: Generated script preview")
+    if agent.ai_enabled:
+        print("   • Script enhanced with OpenRouter AI optimizations 🤖")
+    
+    # Step 5: Show enhanced script preview
+    print("\n📄 Step 5: AI-enhanced script preview")
     lines = script_content.split('\n')
     
-    # Show header
+    # Show header (first 20 lines)
     print("   Script header:")
     for i, line in enumerate(lines[:10]):
         print(f"   {i+1:2}: {line}")

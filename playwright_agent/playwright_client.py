@@ -147,26 +147,76 @@ class PlaywrightClient:
         """
         logger.info("Getting page source")
         
-        # Simulate HTML source
-        # In a real implementation, this would return actual page HTML
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Example Page</title>
-        </head>
-        <body>
-            <h1 class="main-title">Sample Page</h1>
-            <div class="content">
-                <p class="description">This is a sample page for testing.</p>
-                <div class="product-info">
-                    <span class="price">$29.99</span>
-                    <h2 class="product-name">Sample Product</h2>
-                </div>
-            </div>
-        </body>
-        </html>
+    async def get_page_content(self) -> Dict[str, Any]:
         """
+        Get full page content including HTML
+        
+        Returns:
+            Page content information
+        """
+        logger.info("Getting page content")
+        
+        # Simulate getting page HTML content
+        # In a real implementation, this would use Playwright to get actual page HTML
+        html_content = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Example Store - Featured Product</title>
+    <meta name="description" content="Check out our featured product with amazing deals">
+</head>
+<body>
+    <header class="site-header">
+        <h1 class="site-title">Example Store</h1>
+        <nav class="main-nav">
+            <a href="/products">Products</a>
+            <a href="/deals">Deals</a>
+        </nav>
+    </header>
+    
+    <main class="main-content">
+        <div class="product-showcase">
+            <h1 class="product-title main-heading">Premium Wireless Headphones</h1>
+            <div class="product-details">
+                <div class="price-section">
+                    <span class="price current-price">$199.99</span>
+                    <span class="price original-price">$299.99</span>
+                    <span class="discount">33% OFF</span>
+                </div>
+                <div class="product-description">
+                    <p class="description">Experience crystal-clear audio with these premium wireless headphones featuring noise cancellation technology.</p>
+                    <ul class="features">
+                        <li>Active noise cancellation</li>
+                        <li>30-hour battery life</li>
+                        <li>Premium sound quality</li>
+                    </ul>
+                </div>
+                <div class="product-images">
+                    <img src="/images/headphones-main.jpg" alt="Premium Wireless Headphones" class="main-image">
+                </div>
+                <button class="add-to-cart btn-primary">Add to Cart</button>
+            </div>
+        </div>
+        
+        <section class="customer-reviews">
+            <h2 class="reviews-title">Customer Reviews</h2>
+            <div class="review">
+                <div class="rating">5 stars</div>
+                <p class="review-text">Amazing sound quality and comfort!</p>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="site-footer">
+        <p>&copy; 2024 Example Store</p>
+    </footer>
+</body>
+</html>"""
+        
+        return {
+            "html": html_content,
+            "title": "Example Store - Featured Product",
+            "url": self.current_url or "https://example-store.com/featured-product"
+        }
     
     async def find_elements(self, selector: str) -> Dict[str, Any]:
         """
@@ -180,14 +230,38 @@ class PlaywrightClient:
         """
         logger.info(f"Finding elements with selector: {selector}")
         
-        # Simulate finding elements based on common selectors
+        # Simulate finding elements based on the enhanced HTML content
         simulated_elements = {
-            "h1": [{"text": "Sample Page", "visible": True}],
-            ".main-title": [{"text": "Sample Page", "visible": True}],
-            ".price": [{"text": "$29.99", "visible": True}],
-            ".product-name": [{"text": "Sample Product", "visible": True}],
-            ".description": [{"text": "This is a sample page for testing.", "visible": True}],
-            "title": [{"text": "Example Page", "visible": False}]
+            # Title selectors
+            "h1": [{"text": "Premium Wireless Headphones", "visible": True}],
+            ".main-heading": [{"text": "Premium Wireless Headphones", "visible": True}],
+            ".product-title": [{"text": "Premium Wireless Headphones", "visible": True}],
+            ".site-title": [{"text": "Example Store", "visible": True}],
+            
+            # Price selectors
+            ".price": [{"text": "$199.99", "visible": True}, {"text": "$299.99", "visible": True}],
+            ".current-price": [{"text": "$199.99", "visible": True}],
+            ".original-price": [{"text": "$299.99", "visible": True}],
+            "[class*='price']": [{"text": "$199.99", "visible": True}, {"text": "$299.99", "visible": True}],
+            
+            # Description selectors
+            ".description": [{"text": "Experience crystal-clear audio with these premium wireless headphones featuring noise cancellation technology.", "visible": True}],
+            ".product-description": [{"text": "Experience crystal-clear audio with these premium wireless headphones featuring noise cancellation technology.", "visible": True}],
+            "p": [{"text": "Experience crystal-clear audio with these premium wireless headphones featuring noise cancellation technology.", "visible": True}],
+            
+            # Generic selectors
+            "title": [{"text": "Example Store - Featured Product", "visible": False}],
+            "[class*='title']": [{"text": "Premium Wireless Headphones", "visible": True}],
+            "[class*='heading']": [{"text": "Premium Wireless Headphones", "visible": True}],
+            "[class*='name']": [{"text": "Premium Wireless Headphones", "visible": True}],
+            
+            # Image selectors
+            "img": [{"text": "", "visible": True, "src": "/images/headphones-main.jpg"}],
+            ".main-image": [{"text": "", "visible": True, "src": "/images/headphones-main.jpg"}],
+            
+            # Common fallback patterns
+            "span": [{"text": "$199.99", "visible": True}],
+            "div": [{"text": "Premium Wireless Headphones", "visible": True}]
         }
         
         # Return elements for the given selector

@@ -2,7 +2,7 @@
 Main Playwright Agent implementation
 
 This module contains the core agent that orchestrates web scraping using
-the Playwright MCP server and AutoGen framework.
+the Playwright MCP server, AutoGen framework, and OpenRouter AI integration.
 """
 
 import asyncio
@@ -16,11 +16,13 @@ from .models import (
     ScrapingResult, 
     ExtractionPoint, 
     PageAnalysis, 
-    SelectorCandidate
+    SelectorCandidate,
+    OpenRouterConfig
 )
 from .playwright_client import PlaywrightClient
 from .script_generator import ScriptGenerator
 from .selector_discovery import SelectorDiscovery
+from .openrouter_client import OpenRouterClient
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -30,24 +32,47 @@ logger = logging.getLogger(__name__)
 class PlaywrightAgent:
     """
     An intelligent web scraping agent that combines AutoGen's decision-making
-    capabilities with Playwright MCP server for browser automation.
+    capabilities with Playwright MCP server for browser automation and 
+    OpenRouter AI for enhanced intelligence.
     """
     
-    def __init__(self, mcp_server_url: str = "http://localhost:3000"):
+    def __init__(self, mcp_server_url: str = "http://localhost:3000", 
+                 openrouter_config: Optional[OpenRouterConfig] = None):
         """
         Initialize the Playwright Agent
         
         Args:
             mcp_server_url: URL of the Playwright MCP server
+            openrouter_config: Configuration for OpenRouter AI integration
         """
         self.mcp_server_url = mcp_server_url
         self.playwright_client = PlaywrightClient(mcp_server_url)
         self.script_generator = ScriptGenerator()
         self.selector_discovery = SelectorDiscovery()
         
+        # Initialize OpenRouter client if configured
+        self.openrouter_client = None
+        self.ai_enabled = False
+        
+        if openrouter_config and openrouter_config.enabled:
+            try:
+                self.openrouter_client = OpenRouterClient(
+                    api_key=openrouter_config.api_key,
+                    model=openrouter_config.model
+                )
+                self.ai_enabled = True
+                logger.info("OpenRouter AI integration enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenRouter client: {e}")
+                logger.info("Falling back to rule-based analysis")
+        
+        if not self.ai_enabled:
+            logger.info("AI integration disabled, using rule-based analysis")
+        
     async def analyze_page(self, url: str) -> PageAnalysis:
         """
         Analyze a webpage to determine the best scraping approach
+        Uses AI-powered analysis when available, falls back to rule-based analysis
         
         Args:
             url: URL to analyze
@@ -60,6 +85,28 @@ class PlaywrightAgent:
         # Use Playwright MCP to navigate and analyze the page
         page_info = await self.playwright_client.analyze_page(url)
         
+        # Use AI analysis if available
+        if self.ai_enabled and self.openrouter_client:
+            try:
+                analysis = await self.openrouter_client.analyze_page_content(url, page_info)
+                logger.info(f"AI-powered analysis complete: {analysis.suggested_method} (confidence: {analysis.confidence})")
+                return analysis
+            except Exception as e:
+                logger.warning(f"AI analysis failed, falling back to rule-based: {e}")
+        
+        # Fallback to rule-based analysis
+        return self._rule_based_analysis(page_info)
+    
+    def _rule_based_analysis(self, page_info: Dict[str, Any]) -> PageAnalysis:
+        """
+        Rule-based page analysis (fallback when AI is not available)
+        
+        Args:
+            page_info: Basic page information
+            
+        Returns:
+            Rule-based page analysis
+        """
         # Determine if JavaScript is needed
         has_js = page_info.get("has_dynamic_content", False)
         load_time = page_info.get("load_time", 0.0)
@@ -88,6 +135,7 @@ class PlaywrightAgent:
     async def discover_selectors(self, url: str, extraction_points: List[ExtractionPoint]) -> Dict[str, List[SelectorCandidate]]:
         """
         Automatically discover CSS selectors for extraction points
+        Uses AI-enhanced selector discovery when available
         
         Args:
             url: URL to analyze
@@ -101,15 +149,68 @@ class PlaywrightAgent:
         # Navigate to the page using Playwright MCP
         await self.playwright_client.navigate(url)
         
+        # Get page HTML for AI analysis
+        page_html = ""
+        if self.ai_enabled:
+            try:
+                page_data = await self.playwright_client.get_page_content()
+                page_html = page_data.get("html", "")
+            except Exception as e:
+                logger.warning(f"Could not get page HTML for AI analysis: {e}")
+        
         selector_candidates = {}
         
         for point in extraction_points:
             logger.info(f"Finding selectors for: {point.name}")
             
-            # Use the selector discovery service to find candidates
+            # Use the selector discovery service to find initial candidates
             candidates = await self.selector_discovery.find_selectors(
                 point, self.playwright_client
             )
+            
+            # Enhance with AI if available
+            if self.ai_enabled and self.openrouter_client and page_html:
+                try:
+                    # Get initial candidate selectors for AI analysis
+                    existing_selectors = [c.selector for c in candidates]
+                    
+                    # Get AI-suggested selectors
+                    ai_candidates = await self.openrouter_client.discover_selectors_with_ai(
+                        point, page_html, existing_selectors
+                    )
+                    
+                    # Validate AI candidates by testing them on the page
+                    validated_ai_candidates = []
+                    for ai_candidate in ai_candidates:
+                        try:
+                            element_data = await self.playwright_client.find_elements(ai_candidate.selector)
+                            elements = element_data.get("elements", [])
+                            
+                            if elements:
+                                # Update candidate with actual element count and sample text
+                                ai_candidate.element_count = len(elements)
+                                if elements[0].get("text"):
+                                    ai_candidate.sample_text = elements[0]["text"][:100]
+                                validated_ai_candidates.append(ai_candidate)
+                        except Exception as e:
+                            logger.debug(f"AI selector validation failed for '{ai_candidate.selector}': {e}")
+                    
+                    # Merge AI candidates with rule-based candidates
+                    all_candidates = candidates + validated_ai_candidates
+                    
+                    # Remove duplicates and sort by confidence
+                    seen_selectors = set()
+                    unique_candidates = []
+                    for candidate in sorted(all_candidates, key=lambda c: c.confidence, reverse=True):
+                        if candidate.selector not in seen_selectors:
+                            seen_selectors.add(candidate.selector)
+                            unique_candidates.append(candidate)
+                    
+                    candidates = unique_candidates[:5]  # Keep top 5
+                    logger.info(f"Enhanced with AI: {len(validated_ai_candidates)} additional candidates")
+                    
+                except Exception as e:
+                    logger.warning(f"AI selector enhancement failed for {point.name}: {e}")
             
             selector_candidates[point.name] = candidates
             
@@ -119,6 +220,7 @@ class PlaywrightAgent:
                             selectors: Dict[str, str]) -> str:
         """
         Generate a Python script for scraping based on analysis and selectors
+        Uses AI enhancements when available
         
         Args:
             request: Original scraping request
@@ -135,15 +237,35 @@ class PlaywrightAgent:
             method = analysis.suggested_method
         else:
             method = request.method
+        
+        # Get AI suggestions for script improvements if available
+        ai_improvements = {}
+        if self.ai_enabled and self.openrouter_client:
+            try:
+                ai_improvements = await self.openrouter_client.improve_script_generation(
+                    request.extraction_points, selectors, method
+                )
+                logger.info("AI script improvements obtained")
+            except Exception as e:
+                logger.warning(f"AI script improvement failed: {e}")
+        
+        # Apply AI selector improvements if available
+        enhanced_selectors = selectors.copy()
+        if ai_improvements.get("selector_improvements"):
+            for field_name, improved_selector in ai_improvements["selector_improvements"].items():
+                if field_name in enhanced_selectors:
+                    logger.info(f"Applying AI-improved selector for {field_name}: {improved_selector}")
+                    enhanced_selectors[field_name] = improved_selector
             
-        # Generate the script
+        # Generate the script with enhancements
         script_content = await self.script_generator.generate(
             url=request.url,
             extraction_points=request.extraction_points,
-            selectors=selectors,
+            selectors=enhanced_selectors,
             method=method,
             headless=request.headless,
-            wait_for_load=request.wait_for_load
+            wait_for_load=request.wait_for_load,
+            ai_improvements=ai_improvements
         )
         
         # Save the script
@@ -249,10 +371,11 @@ class PlaywrightAgent:
                     # Select the candidate with highest confidence
                     best_candidate = max(candidates, key=lambda c: c.confidence)
                     selected_selectors[point_name] = best_candidate.selector
+                    logger.info(f"Selected selector for {point_name}: {best_candidate.selector} (confidence: {best_candidate.confidence:.2f})")
                 else:
                     logger.warning(f"No selector found for: {point_name}")
                     
-            # Step 3: Generate script
+            # Step 3: Generate script with AI enhancements
             script_content = await self.generate_script(request, analysis, selected_selectors)
             
             # Step 4: Test and iterate

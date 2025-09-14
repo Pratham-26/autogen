@@ -15,6 +15,15 @@ class ExtractionPoint(BaseModel):
     required: bool = Field(default=True, description="Whether this field is required")
 
 
+class OpenRouterConfig(BaseModel):
+    """Configuration for OpenRouter AI integration"""
+    api_key: Optional[str] = Field(default=None, description="OpenRouter API key (defaults to OPENROUTER_API_KEY env var)")
+    model: str = Field(default="anthropic/claude-3.5-sonnet", description="Model to use for AI analysis")
+    enabled: bool = Field(default=True, description="Enable AI-powered analysis")
+    max_tokens: int = Field(default=1000, description="Maximum tokens for AI responses")
+    temperature: float = Field(default=0.3, description="Temperature for AI generation")
+
+
 class ScrapingRequest(BaseModel):
     """Request configuration for web scraping"""
     url: str = Field(description="URL to scrape")
@@ -27,6 +36,7 @@ class ScrapingRequest(BaseModel):
     )
     headless: bool = Field(default=True, description="Run browser in headless mode")
     wait_for_load: bool = Field(default=True, description="Wait for page to fully load")
+    openrouter_config: Optional[OpenRouterConfig] = Field(default=None, description="OpenRouter AI configuration")
 
 
 class ScrapingResult(BaseModel):

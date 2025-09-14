@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
-from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint
+from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint, OpenRouterConfig
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -83,6 +83,13 @@ def create_example_config(output_path: str):
         "method": "auto",
         "headless": True,
         "wait_for_load": True,
+        "openrouter_config": {
+            "api_key": "your_openrouter_api_key_here",
+            "model": "anthropic/claude-3.5-sonnet",
+            "enabled": True,
+            "max_tokens": 1000,
+            "temperature": 0.3
+        },
         "extraction_points": [
             {
                 "name": "product_name",
@@ -150,6 +157,25 @@ async def run_scraping(config_path: str, verbose: bool = False):
         for point in extraction_points:
             print(f"  - {point.name} ({point.type}): {point.description}")
     
+    # Create OpenRouter configuration if provided
+    openrouter_config = None
+    if "openrouter_config" in config:
+        or_config = config["openrouter_config"]
+        openrouter_config = OpenRouterConfig(
+            api_key=or_config.get("api_key"),
+            model=or_config.get("model", "anthropic/claude-3.5-sonnet"),
+            enabled=or_config.get("enabled", True),
+            max_tokens=or_config.get("max_tokens", 1000),
+            temperature=or_config.get("temperature", 0.3)
+        )
+        
+        if verbose:
+            if openrouter_config.enabled:
+                print("OpenRouter AI integration: ENABLED")
+                print(f"  Model: {openrouter_config.model}")
+            else:
+                print("OpenRouter AI integration: DISABLED")
+    
     # Create scraping request
     request = ScrapingRequest(
         url=config["url"],
@@ -158,11 +184,12 @@ async def run_scraping(config_path: str, verbose: bool = False):
         output_file=config.get("output_file", "scraper_script.py"),
         method=config.get("method", "auto"),
         headless=config.get("headless", True),
-        wait_for_load=config.get("wait_for_load", True)
+        wait_for_load=config.get("wait_for_load", True),
+        openrouter_config=openrouter_config
     )
     
-    # Create agent and run scraping
-    agent = PlaywrightAgent()
+    # Create agent with OpenRouter configuration
+    agent = PlaywrightAgent(openrouter_config=openrouter_config)
     
     if verbose:
         print("\\nStarting scraping process...")

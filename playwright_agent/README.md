@@ -1,28 +1,30 @@
 # Playwright Agent
 
-An intelligent web scraping agent built with AutoGen that automatically determines the best approach for extracting data from web pages. It uses the Playwright MCP (Model Context Protocol) server for browser automation, combining existing tools with AI decision-making to create robust scraping solutions without building tools from scratch.
+An intelligent web scraping agent built with AutoGen and enhanced with OpenRouter AI that automatically determines the best approach for extracting data from web pages. It uses the Playwright MCP (Model Context Protocol) server for browser automation, combining existing tools with AI decision-making to create robust scraping solutions without building tools from scratch.
 
 ## What is this Agent?
 
-This is an intelligent web scraping agent built with AutoGen that automatically determines the best approach for extracting data from web pages. It uses the Playwright MCP (Model Context Protocol) server for browser automation, combining existing tools with AI decision-making to create robust scraping solutions without building tools from scratch.
+This is an intelligent web scraping agent built with AutoGen and enhanced with OpenRouter AI that automatically determines the best approach for extracting data from web pages. It uses the Playwright MCP (Model Context Protocol) server for browser automation, combining existing tools with AI decision-making to create robust scraping solutions without building tools from scratch.
 
 ## What does it do?
 
 The agent takes a URL and a list of data points to extract, then:
 
-1. **Analyzes the webpage** using Playwright MCP server for browser automation
+1. **AI-Powered Page Analysis** using OpenRouter models for intelligent method selection
 2. **Determines the best scraping method** (simple HTTP requests vs full browser automation)
-3. **Auto-discovers selectors** for the data you want to extract using Playwright's inspection tools
-4. **Generates a Python script** that can extract the data
+3. **AI-Enhanced Selector Discovery** for the data you want to extract using advanced pattern recognition
+4. **Generates optimized Python scripts** with AI-suggested improvements
 5. **Tests and improves** the script iteratively until it works correctly
 6. **Outputs a ready-to-use Python script** that extracts data as JSON
 
 ## Key Features
 
-- **Smart Method Selection**: Chooses between HTTP scraping (faster) or Selenium (for dynamic content)
-- **Automatic Selector Discovery**: Finds the right HTML elements without manual inspection
-- **Iterative Improvement**: Automatically fixes and improves the script if it doesn't work initially
-- **Production Ready**: Generates complete scripts with error handling and proper data formatting
+- **🧠 AI-Powered Analysis**: Uses OpenRouter's advanced models for intelligent page analysis
+- **🎯 Smart Method Selection**: AI determines optimal approach (HTTP vs browser automation)
+- **🔍 AI-Enhanced Selector Discovery**: Combines rule-based and AI-driven selector finding
+- **⚙️ Intelligent Script Generation**: AI-optimized Python scripts with advanced error handling
+- **🔄 Iterative Improvement**: Automatically fixes and improves scripts using AI feedback
+- **📋 Production Ready**: Generates complete scripts with robust error handling and proper data formatting
 
 ## Installation
 
@@ -33,20 +35,42 @@ Since this agent is designed to be standalone and not import from existing AutoG
 cd playwright_agent
 
 # Install required dependencies
-pip install pydantic httpx asyncio beautifulsoup4 selenium requests
+pip install -r requirements.txt
 ```
+
+## OpenRouter Setup
+
+To enable AI-powered features, you need an OpenRouter API key:
+
+1. Sign up at [OpenRouter](https://openrouter.ai/)
+2. Get your API key from the dashboard
+3. Set the environment variable:
+
+```bash
+export OPENROUTER_API_KEY="your_api_key_here"
+```
+
+The agent will work without an API key but will use rule-based analysis instead of AI-powered intelligence.
 
 ## Usage
 
-### Basic Example
+### Basic Example with AI Integration
 
 ```python
 import asyncio
-from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint
+import os
+from playwright_agent import PlaywrightAgent, ScrapingRequest, ExtractionPoint, OpenRouterConfig
 
 async def main():
-    # Create the agent
-    agent = PlaywrightAgent()
+    # Configure OpenRouter (optional - will use rule-based if not provided)
+    openrouter_config = OpenRouterConfig(
+        api_key=os.getenv("OPENROUTER_API_KEY"),  # or your API key directly
+        model="anthropic/claude-3.5-sonnet",      # recommended model
+        enabled=True
+    )
+    
+    # Create the agent with AI integration
+    agent = PlaywrightAgent(openrouter_config=openrouter_config)
     
     # Define what data to extract
     extraction_points = [
